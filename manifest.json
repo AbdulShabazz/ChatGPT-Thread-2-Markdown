@@ -7,7 +7,7 @@
     "default_title": "Save ChatGPT Thread",
     "default_popup": "index.htm"
   },
-  "permissions": ["activeTab"],
+  "permissions": ["clipboardRead","clipboardWrite","activeTab"],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://chat.openai.com/*"

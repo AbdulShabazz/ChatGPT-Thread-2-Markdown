@@ -25,7 +25,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
   });
 
   if (!markdown) {
-    alert('No content was extracted. Make sure a ChatGPT thread is open.');
+    console.info('No content was extracted. Make sure a ChatGPT thread is open.');
     return;
   }
 
