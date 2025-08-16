@@ -13,13 +13,7 @@
 - `"activeTab"` to interact with the foreground tab as needed.
 
 ## How it works
-- The popup sends a message to the content script asking it to **collect/convert** the entire thread to Markdown (message passing).  
-- The content script:
-  - Scrolls to load lazy messages,
-  - Extracts each message node (assistant/user/system/tool),
-  - Converts HTML → Markdown (code fences, links, lists, images),
-  - Extracts KaTeX → LaTeX from the embedded MathML annotation when present.
-- The popup receives the Markdown and saves it via `chrome.downloads.download`.
+- The popup sends a clipboard-write-to event, after all desired `Copy question/answer blocks` in the thread have been clicked.
 
 ## Options
 - **Include metadata**: adds title, URL, export timestamp to the top of the file.
