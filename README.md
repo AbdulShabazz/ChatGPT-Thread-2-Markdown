@@ -13,7 +13,7 @@
 - `"activeTab"` to interact with the foreground tab as needed.
 
 ## How it works
-- The popup sends a clipboard-write-to event, after all desired `Copy question/answer blocks` in the thread have been clicked.
+- The popup sends a clipboard-write-to event, after all desired `Copy question/answer` blocks in the thread have been clicked.
 
 ## Options
 - **Include metadata**: adds title, URL, export timestamp to the top of the file.
