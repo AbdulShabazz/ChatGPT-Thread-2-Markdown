@@ -1,0 +1,52 @@
+/* Floating control and toast feedback */
+
+#cgpt-clipq-container {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647; /* above site UI */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+#cgpt-clipq-button {
+  appearance: none;
+  border: 0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: #1a73e8; /* Edge/Chromium blue vibe */
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  cursor: pointer;
+}
+
+#cgpt-clipq-button[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+#cgpt-clipq-count {
+  margin-left: 8px;
+  font-weight: 700;
+}
+
+#cgpt-clipq-toast {
+  pointer-events: none;
+  align-self: flex-end;
+  background: rgba(25, 135, 84, 0.95); /* green success */
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+  transform: translateY(10px);
+  opacity: 0;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#cgpt-clipq-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}

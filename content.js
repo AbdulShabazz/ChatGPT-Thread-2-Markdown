@@ -1,239 +1,151 @@
-// Utility: sleep
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+(() => {
+  const POST_TYPE = "__CGPT_CLIPQ_EVENT__";
 
-// Try to ensure lazy-loaded messages are present by scrolling.
-async function ensureAllMessagesLoaded() {
-  let lastHeight = -1;
-  for (let i = 0; i < 12; i++) { // up to ~12 passes
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    await delay(300);
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-    await delay(300);
-    const h = document.documentElement.scrollHeight;
-    if (h === lastHeight) break;
-    lastHeight = h;
+  let IsQueryFlag = true;
+  const g_versionStr = 'OpenAI ChatGPT v1.2025.217';
+
+  // Lightweight queue kept in content-script memory + mirrored to storage.session
+  const state = {
+    queue: [],
+    sep: "\n\n" // separator between items
+  };
+
+  // DOM: floating UI
+  function ensureUi() {
+    if (document.getElementById("cgpt-clipq-container")) return;
+
+    const root = document.createElement("div");
+    root.id = "cgpt-clipq-container";
+
+    const btn = document.createElement("button");
+    btn.id = "cgpt-clipq-button";
+    btn.textContent = "Copy Queue → Clipboard";
+
+    const count = document.createElement("span");
+    count.id = "cgpt-clipq-count";
+    count.textContent = "(0)";
+
+    btn.appendChild(count);
+    btn.disabled = true;
+
+    const toast = document.createElement("div");
+    toast.id = "cgpt-clipq-toast";
+    toast.textContent = "Copied!";
+
+    root.appendChild(btn);
+    root.appendChild(toast);
+    document.documentElement.appendChild(root);
+
+    btn.addEventListener("click", onFlushClicked);
   }
-}
 
-// Find all message root nodes (robust to UI changes).
-function findMessageNodes() {
-  const nodes = new Set();
-
-  // Common patterns seen across ChatGPT UIs over time
-  const candidates = document.querySelectorAll([
-    // MV variants (2024–2025): article[data-message-id]
-    'article[data-message-id]',
-    // Older: elements carrying author role
-    '[data-message-author-role]',
-    // Fallback: explicit message id container
-    'div[data-message-id]'
-  ].join(','));
-
-  for (const el of candidates) {
-    const key = el.getAttribute('data-message-id') || el.dataset.messageId || `${el.tagName}-${nodes.size}`;
-    if (!nodes.has(key)) nodes.add(el);
+  function updateButton() {
+    const count = document.getElementById("cgpt-clipq-count");
+    const btn = document.getElementById("cgpt-clipq-button");
+    if (!count || !btn) return;
+    count.textContent = `(${state.queue.length})`;
+    btn.disabled = state.queue.length === 0;
   }
-  return Array.from(nodes);
-}
 
-// Deduce role string (assistant/user/system/tool) where possible.
-function detectRole(el) {
-  const attr = el.getAttribute('data-message-author-role') || '';
-  if (attr) return attr;
+  function showToast(msg = "Copied!") {
+    const toast = document.getElementById("cgpt-clipq-toast");
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 1200); // transient feedback
+  }
 
-  // Heuristics: labels or class hints (future-proof-ish)
-  const txt = (el.getAttribute('aria-label') || el.className || '').toLowerCase();
-  if (txt.includes('assistant')) return '**A:**';
-  if (txt.includes('user')) return '#### Q:';
-  if (txt.includes('system')) return '**auto-system:**';
-  if (txt.includes('tool')) return '**auto-tool:**';
-  return 'assistant';
-}
+  function sanitize(s) {
+    // Normalize newlines and trim excessive whitespace
+    return String(s ?? "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\u00A0/g, " ")
+      .trim();
+  }
 
-// Normalize whitespace.
-function normalizeText(s) {
-  return s.replace(/\u00A0/g, ' ').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-}
-
-// Extract LaTeX from a KaTeX subtree if present.
-function katexToLatex(el) {
-  // KaTeX typically renders a <span class="katex"> with a <span class="katex-mathml"> containing <annotation encoding="application/x-tex">...</annotation>
-  const mathml = el.querySelector('.katex-mathml annotation');
-  if (mathml && mathml.textContent) return mathml.textContent;
-  return null;
-}
-
-// Convert a single message element into Markdown.
-// We implement a focused converter tuned for ChatGPT's markup.
-// If you prefer a full HTML→MD library, you can swap this out for Turndown.
-function elementToMarkdown(el, { collapseImages = false } = {}) {
-  // Work on a deep clone to avoid mutating the page.
-  const clone = el.cloneNode(true);
-
-  // Remove UI chrome (buttons, menus, feedback, etc.)
-  clone.querySelectorAll('button, menu, nav, svg, textarea, [role="menu"], [data-testid="toast"]').forEach(n => n.remove());
-
-  // Handle KaTeX → LaTeX
-  clone.querySelectorAll('.katex').forEach(kx => {
-    const tex = katexToLatex(kx);
-    if (tex) {
-      // Block vs inline heuristic
-      const isBlock = !!kx.closest('block, div, p, section, article, figure');
-      const fence = isBlock ? `\n$$\n${tex}\n$$\n` : `$${tex}$`;
-      const span = document.createElement('span');
-      span.textContent = fence;
-      kx.replaceWith(span);
-    }
-  });
-
-  // Code blocks: <pre><code class="language-xxx">...</code></pre>
-  clone.querySelectorAll('pre').forEach(pre => {
-    const code = pre.querySelector('code') || pre;
-    const lang = (code.className || '').match(/language-([\w-]+)/)?.[1] || '';
-    const fence = '```' + lang + '\n' + code.textContent.replace(/\n$/, '') + '\n```\n';
-    const block = document.createElement('div');
-    block.textContent = fence;
-    pre.replaceWith(block);
-  });
-
-  // Inline code: <code>...</code> not inside pre
-  clone.querySelectorAll('code').forEach(code => {
-    if (code.closest('pre')) return;
-    const t = code.textContent;
-    const wrapped = '`' + t.replace(/`/g, '\\`') + '`';
-    const span = document.createElement('span');
-    span.textContent = wrapped;
-    code.replaceWith(span);
-  });
-
-  // Links: convert <a href="...">text</a> → [text](href)
-  clone.querySelectorAll('a[href]').forEach(a => {
-    const href = a.getAttribute('href') || '';
-    const text = a.textContent || href;
-    const md = `[${text}](${href})`;
-    const span = document.createElement('span');
-    span.textContent = md;
-    a.replaceWith(span);
-  });
-
-  // Images: convert <img> → ![alt](src) or collapsed link
-  clone.querySelectorAll('img').forEach(img => {
-    const src = img.getAttribute('src') || '';
-    const alt = img.getAttribute('alt') || '';
-    const md = collapseImages ? `[image: ${alt || 'img'}](${src})` : `![${alt}](${src})`;
-    const span = document.createElement('span');
-    span.textContent = md;
-    img.replaceWith(span);
-  });
-
-  // Headings: h1..h6 → # .. ######
-  for (let lvl = 6; lvl >= 1; lvl--) {
-    clone.querySelectorAll(`h${lvl}`).forEach(h => {
-      const hashes = '#'.repeat(lvl);
-      const md = `\n${hashes} ${normalizeText(h.textContent)}\n`;
-      const div = document.createElement('div');
-      div.textContent = md;
-      h.replaceWith(div);
+  function enqueue(kind, text) {
+    const clean = sanitize(text);
+    if (!clean) return;
+    state.queue.push({
+      kind,
+      text: clean,
+      t: new Date().toISOString()
     });
+    chrome.storage.session.set({ cgpt_clipq_queue: state.queue });
+    updateButton();
   }
 
-  // Lists: simple transforms for <ul>/<ol>
-  clone.querySelectorAll('ul').forEach(ul => {
-    const items = Array.from(ul.querySelectorAll(':scope > li')).map(li => `- ${normalizeText(li.textContent)}`);
-    const md = '\n' + items.join('\n') + '\n';
-    const div = document.createElement('div');
-    div.textContent = md;
-    ul.replaceWith(div);
-  });
-  clone.querySelectorAll('ol').forEach((ol) => {
-    const items = Array.from(ol.querySelectorAll(':scope > li')).map((li, i) => `${i + 1}. ${normalizeText(li.textContent)}`);
-    const md = '\n' + items.join('\n') + '\n';
-    const div = document.createElement('div');
-    div.textContent = md;
-    ol.replaceWith(div);
-  });
+  async function onFlushClicked() {
+    try {
+      const payload = state.queue.map((it, i) => {
+        let thread = `${i%2==0 ? '**Q:' : '**A:**'} ${it.text}${i%2==0 ? '**' : ''}`;
+        if (i == 0)
+          thread = `## ${g_versionStr}\n\n${thread}`;
+        return thread;
+      }).join(state.sep);
 
-  // Blockquotes
-  clone.querySelectorAll('blockquote').forEach(bq => {
-    const lines = normalizeText(bq.textContent).split('\n').map(l => `> ${l}`);
-    const md = '\n' + lines.join('\n') + '\n';
-    const div = document.createElement('div');
-    div.textContent = md;
-    bq.replaceWith(div);
-  });
+      // Write to system clipboard
+      await navigator.clipboard.writeText(payload); // requires clipboardWrite and a user gesture
 
-  // Try to focus on message payload area; many UIs wrap the text in a "markdown/prose" container.
-  const payload =
-    clone.querySelector('.markdown, .prose, .whitespace-pre-wrap, [data-message-author-role], article, .text-base') || clone;
-
-  return normalizeText(payload.textContent || '');
-}
-
-// Try to collect a per-message timestamp if ChatGPT exposes one (not always present).
-function findTimestamp(el) {
-  const time = el.querySelector('time[datetime]') || el.querySelector('time');
-  if (time?.getAttribute('datetime')) return time.getAttribute('datetime');
-  if (time?.textContent) return time.textContent.trim();
-  return '';
-}
-
-// Entry point: build the thread Markdown.
-async function buildThreadMarkdown(options) {
-  await ensureAllMessagesLoaded();
-
-  const title = options.includeTitle 
-    || document.querySelector('header h1, h1')?.textContent?.trim()
-    || document.title?.trim()
-    || 'ChatGPT Thread';
-
-  const url = location.href;
-  const nodes = findMessageNodes();
-
-  const lines = [];
-
-  if (options?.includeMeta !== false) {
-    const now = new Date().toISOString();
-    lines.push(`# ${title}`);
-    //lines.push('');
-    //lines.push(`- Source: ${url}`);
-    //lines.push(`- Exported: ${now}`);
-    //lines.push('');
-    //lines.push('---');
-    lines.push('');
-  }
-
-  for (const el of nodes) {
-    const role = detectRole(el);
-    const ts = options?.includeTimestamps ? findTimestamp(el) : '';
-    const header = `### ${role}${ts/*  ? ` — ${ts}` : '' */}`;
-    const bodyMd = elementToMarkdown(el, { collapseImages: !!options?.collapseImages });
-
-    // Skip empty noise
-    if (!bodyMd) continue;
-
-    lines.push(header);
-    lines.push('');
-    lines.push(bodyMd);
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-// Listen for popup request
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  (async () => {
-    if (msg?.type === 'EXPORT_CHATGPT_THREAD_MARKDOWN') {
-      try {
-        const md = await buildThreadMarkdown(msg.options || {});
-        sendResponse(md);
-      } catch (e) {
-        console.error(e);
-        sendResponse('');
-      }
+      // Clear queue after successful write
+      state.queue.length = 0;
+      chrome.storage.session.set({ cgpt_clipq_queue: state.queue });
+      updateButton();
+      showToast("Copied queue to clipboard.");
+    } catch (e) {
+      showToast("Copy failed (permission?).");
+      // Tip: If this errors, ensure the tab is active and focused.
     }
-  })();
+  }
 
-  // Keep the message channel open for the async sendResponse.
-  return true;
-});
+  // Listen to messages from injected page-context wrapper
+  function onPageMessage(ev) {
+    const data = ev?.data;
+    if (!data || data.type !== POST_TYPE) return;
+    const { kind, payload } = data;
+    const text = payload?.text ?? "";
+    enqueue(kind, text);
+  }
+
+  // Load previous session (same tab) queue if any
+  async function restoreQueue() {
+    try {
+      const { cgpt_clipq_queue } = await chrome.storage.session.get("cgpt_clipq_queue");
+      if (Array.isArray(cgpt_clipq_queue)) {
+        state.queue = cgpt_clipq_queue;
+      }
+    } catch {}
+    updateButton();
+  }
+
+  // Inject page-context shim
+  function injectShim() {
+    try {
+      const s = document.createElement("script");
+      s.src = chrome.runtime.getURL("injected.js");
+      s.onload = () => s.remove();
+      (document.head || document.documentElement).appendChild(s);
+    } catch {}
+  }
+
+  // Init
+  ensureUi();
+  restoreQueue();
+  injectShim();
+  window.addEventListener("message", onPageMessage, false);
+
+  // Also observe content-world user copy/cut (belt-and-suspenders)
+  document.addEventListener("copy", () => {
+    const sel = (document.getSelection?.() || "").toString();
+    if (sel) enqueue("copy", sel);
+  }, true);
+  document.addEventListener("cut", () => {
+    const sel = (document.getSelection?.() || "").toString();
+    if (sel) enqueue("cut", sel);
+  }, true);
+
+  // Optional: clean up if ChatGPT does client-side route changes
+  document.addEventListener("visibilitychange", () => {
+    // no-op; placeholder for future route-aware logic
+  });
+})();
