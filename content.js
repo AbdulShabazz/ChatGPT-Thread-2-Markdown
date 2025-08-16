@@ -1,11 +1,27 @@
+
+let lines = [];
+let IsQuestionFlag = true;
+
 // Capture-phase listeners catch early; you can also attach to document/body.
 document.addEventListener('copy', (e) => {
   // Optionally examine/override the payload
   const selection = window.getSelection()?.toString() || '';
   // Example: Read the default text payload (if present) from the event
-  const evtText = e.clipboardData?.getData('text/plain') || selection;
-
-  chrome.runtime.sendMessage({ type: 'COPY_EXPORT_CHATGPT_THREAD_MARKDOWN', payload: evtText });
+  const payload = e.clipboardData?.getData('text/plain') || selection;  
+  try {
+    if(lines.length < 1) {
+      const version = "OpenAI ChatGPT-5 v1.2025.217";
+      const title = document.querySelector('header h1, h1')?.textContent?.trim()
+        || document.title?.trim()
+        || 'ChatGPT Thread';
+      lines.push(`${version} - ${title}`);
+    } 
+    const line = IsQuestionFlag ? `**Q: ${payload}**` : `**A:**\n\n${payload}` ;
+    lines.push(line);
+    IsQuestionFlag != IsQuestionFlag;
+  } catch (e) {
+    console.error(e);
+  }  
 }, true);
 
 // document.addEventListener('cut', (e) => {
@@ -13,10 +29,10 @@ document.addEventListener('copy', (e) => {
 //   chrome.runtime.sendMessage({ type: 'cut', text: selection });
 // }, true);
 
-// document.addEventListener('paste', (e) => {
-//   const pasted = e.clipboardData?.getData('text/plain') || '';
-//   chrome.runtime.sendMessage({ type: 'pasted', text: pasted });
-// }, true);
+document.addEventListener('paste', (e) => {
+  const pasted = e.clipboardData?.getData('text/plain') || '';
+  chrome.runtime.sendMessage({ type: 'pasted', text: pasted });
+}, true);
 
 // Utility: sleep
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -240,31 +256,9 @@ async function buildThreadMarkdown(options) {
   return lines.join('\n');
 } // end async function buildThreadMarkdown
 
-let lines = [];
-let IsQuestionFlag = true;
-
 // Listen for popup request
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   (async () => {
-    if (msg?.type === 'COPY_EXPORT_CHATGPT_THREAD_MARKDOWN') {
-      try {
-        if(lines.length < 1) {
-          const version = "OpenAI ChatGPT-5 v1.2025.217";
-          const title = document.querySelector('header h1, h1')?.textContent?.trim()
-            || document.title?.trim()
-            || 'ChatGPT Thread';
-          lines.push(`${version} - ${title}`);
-        } 
-        const line = IsQuestionFlag ? `**Q: ${msg.payload}**` : `**A:**\n\n${msg.payload}` ;
-        lines.push(line);
-        IsQuestionFlag != IsQuestionFlag;
-        //const md = lines.push(line);
-        //sendResponse(md);
-      } catch (e) {
-        console.error(e);
-        //sendResponse('');
-      }
-    }
     if (msg?.type === 'EXPORT_CHATGPT_THREAD_MARKDOWN') {
       try {
         const md = lines.join('\n\n'); //await buildThreadMarkdown(msg.options || {});
