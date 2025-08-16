@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Save ChatGPT Thread as Markdown",
+  "version": "1.0.0",
+  "description": "Parses the current ChatGPT conversation and saves it as a Markdown (.md) file.",
+  "action": {
+    "default_title": "Save ChatGPT Thread",
+    "default_popup": "index.htm"
+  },
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
