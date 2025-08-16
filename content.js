@@ -3,6 +3,9 @@
 
   let IsQueryFlag = true;
   const g_versionStr = 'OpenAI ChatGPT v1.2025.217';
+  const g_titleStr = document.querySelector('header h1, h1')?.textContent?.trim()
+    || document.title?.trim()
+    || 'ChatGPT Thread';
 
   // Lightweight queue kept in content-script memory + mirrored to storage.session
   const state = {
@@ -80,7 +83,7 @@
       const payload = state.queue.map((it, i) => {
         let thread = `${i%2==0 ? '**Q:' : '**A:**'} ${it.text}${i%2==0 ? '**' : ''}`;
         if (i == 0)
-          thread = `## ${g_versionStr}\n\n${thread}`;
+          thread = `## ${g_versionStr} - ${g_titleStr}\n\n${thread}`;
         return thread;
       }).join(state.sep);
 
