@@ -3,9 +3,33 @@
 
   let IsQueryFlag = true;
   const g_versionStr = 'OpenAI ChatGPT v1.2025.217';
-  const g_titleStr = document.querySelector('header h1, h1')?.textContent?.trim()
-    || document.title?.trim()
-    || 'ChatGPT Thread';
+  
+  // Utility: sleep
+  const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Try to ensure lazy-loaded messages are present by scrolling.
+  async function ensureAllMessagesLoaded() {
+    let lastHeight = -1;
+    for (let i = 0; i < 12; i++) { // up to ~12 passes
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      await delay(250);
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+      await delay(250);
+      const h = document.documentElement.scrollHeight;
+      if (h === lastHeight) break;
+      lastHeight = h;
+    }
+  }
+
+  const ___ = (async () => {
+    await ensureAllMessagesLoaded();
+    g_titleStr = (document.querySelector('header h1, h1')?.textContent?.trim()
+      || document.title?.trim()
+      || 'ChatGPT Thread')
+      .split(' ') // Split into words
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
+      .join('.') + '.md'; // Join back into a string;
+  })();
 
   // Lightweight queue kept in content-script memory + mirrored to storage.session
   const state = {
@@ -83,7 +107,7 @@
       const payload = state.queue.map((it, i) => {
         let thread = `${i%2==0 ? '**Q:' : '**A:**'} ${it.text}${i%2==0 ? '**' : ''}`;
         if (i == 0)
-          thread = `## ${g_versionStr} - ${g_titleStr}\n\n${thread}`;
+          thread = `## ${g_versionStr} ${g_titleStr}\n\n${thread}`;
         return thread;
       }).join(state.sep);
 
