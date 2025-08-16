@@ -5,7 +5,7 @@
 2. Enable **Developer mode** (top-right).
 3. Click **Load unpacked** and select this folder.
 4. Navigate to a ChatGPT conversation (chatgpt.com or chat.openai.com).
-5. Click the extension icon → **Export as .md**.
+5. Queue copy/write clipboard events on ChatGPT
 
 ## Permissions
 - `"downloads"` to write the Markdown file via `chrome.downloads.download`.  
