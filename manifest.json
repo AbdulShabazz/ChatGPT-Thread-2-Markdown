@@ -1,22 +1,37 @@
 {
   "manifest_version": 3,
-  "name": "Save ChatGPT Thread as Markdown",
+  "name": "ChatGPT Clipboard Queue",
   "version": "1.0.0",
-  "description": "Parses the current ChatGPT conversation and saves it as a Markdown (.md) file.",
-  "action": {
-    "default_title": "Save ChatGPT Thread",
-    "default_popup": "index.htm"
-  },
-  "permissions": ["clipboardRead","clipboardWrite","activeTab"],
+  "description": "Queue copy/write clipboard events on ChatGPT, then flush to clipboard with transient feedback.",
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "clipboardWrite",
+    "storage"
+  ],
   "host_permissions": [
-    "https://chatgpt.com/*",
-    "https://chat.openai.com/*"
+    "https://chat.openai.com/*",
+    "https://chatgpt.com/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
       "js": ["content.js"],
+      "css": ["content.css"],
       "run_at": "document_idle"
     }
-  ]
+  ],
+  "web_accessible_resources": [{
+    "resources": ["injected.js"],
+    "matches": [
+      "https://chat.openai.com/*",
+      "https://chatgpt.com/*"
+    ]
+  }],
+  "action": {
+    "default_title": "Clipboard Queue"
+  }
 }
