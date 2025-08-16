@@ -37,6 +37,16 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
 
   // Save (clipboard)
   navigator.clipboard.writeText(markdown)
+  
+  const successMsg = document.getElementById('successMsg');
+
+  // Show message
+  successMsg.style.display = 'inline-block';
+
+  // Hide after 2 seconds
+  setTimeout(() => {
+    successMsg.style.display = 'none';
+  }, 1500);
 
   /*
   // Save using downloads API (requires "downloads" permission).

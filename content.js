@@ -194,18 +194,18 @@ async function buildThreadMarkdown(options) {
   if (options?.includeMeta !== false) {
     const now = new Date().toISOString();
     lines.push(`# ${title}`);
-    lines.push('');
-    lines.push(`- Source: ${url}`);
-    lines.push(`- Exported: ${now}`);
-    lines.push('');
-    lines.push('---');
+    //lines.push('');
+    //lines.push(`- Source: ${url}`);
+    //lines.push(`- Exported: ${now}`);
+    //lines.push('');
+    //lines.push('---');
     lines.push('');
   }
 
   for (const el of nodes) {
     const role = detectRole(el);
     const ts = options?.includeTimestamps ? findTimestamp(el) : '';
-    const header = `### ${role}${ts ? ` — ${ts}` : ''}`;
+    const header = `### ${role}${ts/*  ? ` — ${ts}` : '' */}`;
     const bodyMd = elementToMarkdown(el, { collapseImages: !!options?.collapseImages });
 
     // Skip empty noise
