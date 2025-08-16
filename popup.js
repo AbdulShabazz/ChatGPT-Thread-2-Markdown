@@ -7,11 +7,12 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
   const tab = await getActiveTab();
   if (!tab || !tab.id) return;
 
+  const version = "OpenAI ChatGPT-5 v1.2025.217"
   const titleHint = (await chrome.tabs.get(tab.id)).title || 'chatgpt-thread';
   const title = titleHint.replace(/[\\/:*?"<>|]+/g, '').slice(0, 80) || 'chatgpt-thread';
 
   const options = {
-    includeTitle: title,
+    includeTitle: `${version} - ${title}`,
     includeMeta: document.getElementById('includeMeta').checked,
     includeTimestamps: document.getElementById('includeTimestamps').checked,
     collapseImages: document.getElementById('collapseImages').checked

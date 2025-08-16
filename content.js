@@ -43,10 +43,10 @@ function detectRole(el) {
 
   // Heuristics: labels or class hints (future-proof-ish)
   const txt = (el.getAttribute('aria-label') || el.className || '').toLowerCase();
-  if (txt.includes('assistant')) return 'assistant';
-  if (txt.includes('user')) return 'user';
-  if (txt.includes('system')) return 'system';
-  if (txt.includes('tool')) return 'tool';
+  if (txt.includes('assistant')) return '**A:**';
+  if (txt.includes('user')) return '#### Q:';
+  if (txt.includes('system')) return '**auto-system:**';
+  if (txt.includes('tool')) return '**auto-tool:**';
   return 'assistant';
 }
 
