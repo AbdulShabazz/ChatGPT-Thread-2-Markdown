@@ -1,10 +1,13 @@
 (() => {
   const POST_TYPE = "__CGPT_CLIPQ_EVENT__";
 
+  let IsQueryFlag = true;
+  const g_versionStr = 'OpenAI ChatGPT v1.2025.217';
+
   // Lightweight queue kept in content-script memory + mirrored to storage.session
   const state = {
     queue: [],
-    sep: "\n\n---\n\n" // separator between items
+    sep: "\n\n" // separator between items
   };
 
   // DOM: floating UI
@@ -75,7 +78,10 @@
   async function onFlushClicked() {
     try {
       const payload = state.queue.map((it, i) => {
-        return `#${i + 1} [${it.kind} @ ${it.t}]` + "\n" + it.text;
+        let thread = `${i%2==0 ? '**Q:' : '**A:**'} ${it.text}${i%2==0 ? '**' : ''}`;
+        if (i == 0)
+          thread = `## ${g_versionStr}\n\n${thread}`;
+        return thread;
       }).join(state.sep);
 
       // Write to system clipboard
