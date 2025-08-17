@@ -23,8 +23,7 @@
 
   const ___ = (async () => {
     await ensureAllMessagesLoaded();
-    g_titleStr = (document.querySelector('header h1, h1')?.textContent?.trim()
-      || document.title?.trim()
+    g_titleStr = (document.getElementsByTagName('title')[0]?.text
       || 'ChatGPT Thread')
       .split(' ') // Split into words
       .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
