@@ -11,7 +11,8 @@
   ],
   "host_permissions": [
     "https://chat.openai.com/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://itunes.apple.com/*"
   ],
   "content_scripts": [
     {

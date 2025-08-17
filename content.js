@@ -2,7 +2,22 @@
   const POST_TYPE = "__CGPT_CLIPQ_EVENT__";
 
   let IsQueryFlag = true;
-  const g_versionStr = 'OpenAI ChatGPT v1.2025.217';
+  const url = 'https://itunes.apple.com/lookup?id=6448311069&country=us';
+  const g_ver = 'v1.2025.217'
+  let g_versionStr = `OpenAI ChatGPT ${g_ver}`;
+
+  // Fetch ChatGPT version info
+  fetch(url).then(r => r.json()).then(j => {
+    const r0 = j.results?.[0] || {};
+    const version = r0?.version;
+    g_versionStr = version ? `OpenAI ChatGPT v${version}` : g_versionStr ;
+    // console.log({
+    //   version: r0.version,
+    //   released: r0.currentVersionReleaseDate,
+    //   releaseNotes: r0.releaseNotes?.slice(0, 200) || '',
+    //   store: r0.trackViewUrl
+    // });
+  });
   
   // Utility: sleep
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
