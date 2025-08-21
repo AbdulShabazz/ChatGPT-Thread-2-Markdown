@@ -34,16 +34,7 @@
       if (h === lastHeight) break;
       lastHeight = h;
     }
-  }
-
-  const ___ = (async () => {
-    await ensureAllMessagesLoaded();
-    g_titleStr = (document.getElementsByTagName('title')[0]?.text
-      || 'ChatGPT Thread')
-      .split(' ') // Split into words
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
-      .join('.') + '.md'; // Join back into a string;
-  })();
+  } // end ensureAllMessagesLoaded
 
   // Lightweight queue kept in content-script memory + mirrored to storage.session
   const state = {
@@ -120,8 +111,14 @@
     try {
       const payload = state.queue.map((it, i) => {
         let thread = `${i%2==0 ? '**Q:' : '**A:**'} ${it.text}${i%2==0 ? '**' : ''}`;
-        if (i == 0)
+        if (i == 0){
+          g_titleStr = (document.getElementsByTagName('title')[0]?.text
+            || 'ChatGPT Thread')
+            .split(' ') // Split into words
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize first letter
+            .join('.') + '.md'; // Join back into a string;
           thread = `## ${g_versionStr} ${g_titleStr}\n\n${thread}`;
+        }
         return thread;
       }).join(state.sep);
 
